@@ -119,6 +119,30 @@ public class TurkishSpellCheckerTest {
     // TODO: "Bayramı'nda" fails.
   }
 
+  @Test
+  public void suggestVerb1() {
+    TurkishMorphology morphology = TurkishMorphology.builder().setLexicon("okumak").build();
+
+    List<String> endings = Lists.newArrayList("dum");
+    StemEndingGraph graph = new StemEndingGraph(morphology, endings);
+    TurkishSpellChecker spellChecker = new TurkishSpellChecker(morphology, graph.stemGraph);
+
+    List<String> res = spellChecker.suggestForWord("okudm");
+    Assert.assertTrue(res.contains("okudum"));
+  }
+
+
+  @Test
+  public void checkVerb1() {
+    TurkishMorphology morphology = TurkishMorphology.builder().setLexicon("okumak").build();
+
+    List<String> endings = Lists.newArrayList("dum");
+    StemEndingGraph graph = new StemEndingGraph(morphology, endings);
+    TurkishSpellChecker spellChecker = new TurkishSpellChecker(morphology, graph.stemGraph);
+
+    Assert.assertTrue(spellChecker.check("okudum"));
+  }
+
   private void check(TurkishSpellChecker spellChecker, NgramLanguageModel lm, String input,
       String expected) throws Exception {
     List<String> res = spellChecker.suggestForWord(input, lm);
@@ -169,7 +193,7 @@ public class TurkishSpellCheckerTest {
     try (PrintWriter pw = new PrintWriter("bigram-test-result.txt")) {
       for (String sentence : sentences) {
         pw.println(sentence);
-        List<String> input = spellChecker.tokenizeForSpelling(sentence);
+        List<String> input = TurkishSpellChecker.tokenizeForSpelling(sentence);
         for (int i = 0; i < input.size(); i++) {
           String left = i == 0 ? null : input.get(i - 1);
           String right = i == input.size() - 1 ? null : input.get(i + 1);

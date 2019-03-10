@@ -63,7 +63,7 @@ public class DocumentSimilarityExperiment {
       }
       String str = doc.getContentAsString();
       str = str.length() > 200 ? str.substring(0, 200) : str;
-      float[] vec = fastText.textVector(str).clone();
+      float[] vec = fastText.sentenceVector(str).clone();
       //float[] vec = fastText.textVectors(doc.getLines()).data_.clone();
       sims.add(new DocumentSimilarity(doc, vec));
     }
@@ -110,7 +110,7 @@ public class DocumentSimilarityExperiment {
   public List<ScoredItem<WebDocument>> nearestK(DocumentSimilarity source,
       List<DocumentSimilarity> sims, int k) {
     PriorityQueue<ScoredItem<WebDocument>> queue = new PriorityQueue<>(k,
-        (a, b) -> Double.compare(a.score, b.score));
+        Comparator.comparingDouble(a -> a.score));
 
     for (DocumentSimilarity sim : sims) {
       // skip self.

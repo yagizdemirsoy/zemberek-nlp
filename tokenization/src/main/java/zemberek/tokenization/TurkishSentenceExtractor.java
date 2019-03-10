@@ -17,6 +17,7 @@ import zemberek.core.collections.UIntSet;
 import zemberek.core.io.IOUtil;
 import zemberek.core.logging.Log;
 import zemberek.core.text.TextIO;
+import zemberek.core.turkish.TurkishAlphabet;
 
 /**
  * This class is used for extracting sentences from paragraphs. For making boundary decisions it
@@ -30,23 +31,72 @@ public class TurkishSentenceExtractor extends PerceptronSegmenter {
    * A singleton instance that is generated from the default internal model.
    */
   public static final TurkishSentenceExtractor DEFAULT = Singleton.Instance.extractor;
+
   static final String BOUNDARY_CHARS = ".!?…";
   private static final Pattern LINE_BREAK_PATTERN = Pattern.compile("[\n\r]+");
+  private boolean doNotSplitInDoubleQuotes = false;
 
   private TurkishSentenceExtractor(FloatValueMap<String> weights) {
     this.weights = weights;
   }
 
-  public static TurkishSentenceExtractor loadFromBinaryFile(Path file) throws IOException {
-    try (DataInputStream dis = IOUtil.getDataInputStream(file)) {
-      return new TurkishSentenceExtractor(load(dis));
-    }
+  private TurkishSentenceExtractor(FloatValueMap<String> weights,
+      boolean doNotSplitInDoubleQuotes) {
+    this.weights = weights;
+    this.doNotSplitInDoubleQuotes = doNotSplitInDoubleQuotes;
   }
 
   private static TurkishSentenceExtractor fromDefaultModel() throws IOException {
     try (DataInputStream dis = IOUtil.getDataInputStream(
         Resources.getResource("tokenization/sentence-boundary-model.bin").openStream())) {
       return new TurkishSentenceExtractor(load(dis));
+    }
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static class Builder {
+
+    boolean _doNotSplitInDoubleQuotes = false;
+    FloatValueMap<String> _model;
+
+    public Builder doNotSplitInDoubleQuotes() {
+      this._doNotSplitInDoubleQuotes = true;
+      return this;
+    }
+
+    public Builder useModelFromResource(String resource) throws IOException {
+      try (DataInputStream dis = IOUtil.getDataInputStream(
+          Resources.getResource(resource).openStream())) {
+        this._model = load(dis);
+      }
+      return this;
+    }
+
+    public Builder useModelFromPath(Path path) throws IOException {
+      try (DataInputStream dis = IOUtil.getDataInputStream(path)) {
+        this._model = load(dis);
+      }
+      return this;
+    }
+
+    public Builder useDefaultModel() {
+      String resource = "tokenization/sentence-boundary-model.bin";
+      try {
+        useModelFromResource(resource);
+      } catch (IOException e) {
+        throw new IllegalStateException("Cannot find internal resource:" + resource);
+      }
+      return this;
+    }
+
+    public TurkishSentenceExtractor build() {
+      if (_model == null) {
+        useDefaultModel();
+      }
+      return new TurkishSentenceExtractor(_model, _doNotSplitInDoubleQuotes);
     }
   }
 
@@ -78,15 +128,28 @@ public class TurkishSentenceExtractor extends PerceptronSegmenter {
     return indexes;
   }
 
+  // TODO: doNotSplitInDoubleQuotes may not be suitable for some cases.
+  // such as for paragraph: "Merhaba. Nasılsın?"
   private List<Span> extractToSpans(String paragraph) {
     List<Span> spans = new ArrayList<>();
+    List<Span> quoteSpans = null;
+    if (doNotSplitInDoubleQuotes) {
+      quoteSpans = doubleQuoteSpans(paragraph);
+    }
     int begin = 0;
     for (int j = 0; j < paragraph.length(); j++) {
+
       // skip if char cannot be a boundary char.
       char chr = paragraph.charAt(j);
       if (BOUNDARY_CHARS.indexOf(chr) < 0) {
         continue;
       }
+
+      // skip if breaking is not allowed between double quotes.
+      if (doNotSplitInDoubleQuotes && quoteSpans != null && inSpan(j, quoteSpans)) {
+        continue;
+      }
+
       BoundaryData boundaryData = new BoundaryData(paragraph, j);
       if (boundaryData.nonBoundaryCheck()) {
         continue;
@@ -113,6 +176,44 @@ public class TurkishSentenceExtractor extends PerceptronSegmenter {
     }
     return spans;
   }
+
+  private static final String doubleQuotes = "\"”“»«";
+
+  /**
+   * Finds double quote spans.
+   */
+  private List<Span> doubleQuoteSpans(String input) {
+    List<Span> spans = new ArrayList<>();
+
+    int start = -1;
+    boolean started = false;
+    for (int j = 0; j < input.length(); j++) {
+      char c = input.charAt(j);
+      if (doubleQuotes.indexOf(c) >= 0) {
+        if (!started) {
+          start = j;
+          started = true;
+        } else {
+          spans.add(new Span(start, j));
+          started = false;
+        }
+      }
+    }
+    return spans;
+  }
+
+  private boolean inSpan(int index, List<Span> spans) {
+    for (Span span : spans) {
+      if (span.start > index) {
+        return false;
+      }
+      if (span.inSpan(index)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
 
   /**
    * Extracts sentences from a paragraph string. This method does not split from line breaks
@@ -360,7 +461,7 @@ public class TurkishSentenceExtractor extends PerceptronSegmenter {
           rightChunk : input.substring(pointer + 1, nextBoundaryOrSpace);
 
       currentChar = input.charAt(pointer);
-      currentWord = leftChunk + String.valueOf(currentChar) + rightChunk;
+      currentWord = leftChunk + currentChar + rightChunk;
       currentWordNoPunctuation = currentWord.replaceAll("[.!?…]", "");
 
       StringBuilder sb = new StringBuilder();
@@ -435,7 +536,7 @@ public class TurkishSentenceExtractor extends PerceptronSegmenter {
       if (rightChunk.length() > 0) {
         features.add("7r:" + Character.isUpperCase(rightChunk.charAt(0)));
         features.add("9r:" + getMetaChars(rightChunk));
-        if (!containsVowel(rightChunk)) {
+        if (!TurkishAlphabet.INSTANCE.containsVowel(rightChunk)) {
           features.add("rcc:true");
         }
       }
@@ -445,7 +546,7 @@ public class TurkishSentenceExtractor extends PerceptronSegmenter {
       }
 
       if (leftChunk.length() > 0) {
-        if (!containsVowel(leftChunk)) {
+        if (!TurkishAlphabet.INSTANCE.containsVowel(leftChunk)) {
           features.add("lcc:true");
         }
       }

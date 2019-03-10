@@ -154,11 +154,11 @@ URL :
 
 Email
     :AllTurkishAlphanumericalUnderscore+ '.'? AllTurkishAlphanumericalUnderscore+ '@'
-    (AllTurkishAlphanumerical+ '.' AllTurkishAlphanumerical+)+ ;
+    (AllTurkishAlphanumericalUnderscore+ '.' AllTurkishAlphanumericalUnderscore+)+ AposAndSuffix?;
 
-HashTag: '#' AllTurkishAlphanumerical+;
+HashTag: '#' AllTurkishAlphanumericalUnderscore+ AposAndSuffix?;
 
-Mention: '@' AllTurkishAlphanumerical+;
+Mention: '@' AllTurkishAlphanumericalUnderscore+ AposAndSuffix?;
 
 MetaTag: '<' AllTurkishAlphanumericalUnderscore+ '>';
 
