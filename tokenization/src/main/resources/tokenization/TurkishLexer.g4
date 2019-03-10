@@ -24,7 +24,16 @@ private static Locale localeTr = new Locale("tr");
 
 static {
     try {
-        for(String line: Resources.readLines(Resources.getResource("tokenization/abbreviations.txt"),Charsets.UTF_8)) {
+        String abbreviationsFilePath = System.getenv("ABBREVIATIONS_FILE_PATH");
+
+        java.net.URL fileUrl;
+        if(abbreviationsFilePath == null) {
+          fileUrl = Resources.getResource("tokenization/abbreviations.txt");
+        } else {
+          fileUrl = new java.net.URL(abbreviationsFilePath);
+        }
+
+        for(String line: Resources.readLines(fileUrl, Charsets.UTF_8)) {
             if (line.trim().length() > 0) {
                 final String abbr = line.trim().replaceAll("\\s+",""); // erase spaces
                 if (abbr.endsWith(".")) {
