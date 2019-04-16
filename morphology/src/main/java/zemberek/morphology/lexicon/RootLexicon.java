@@ -14,7 +14,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +31,8 @@ import zemberek.morphology.lexicon.tr.TurkishDictionaryLoader;
  */
 public class RootLexicon implements Iterable<DictionaryItem> {
 
+  private static final int INITIAL_CAPACITY = 1000;
+
   private enum Singleton {
     Instance;
     RootLexicon defaultLexicon = defaultBinaryLexicon();
@@ -38,9 +42,9 @@ public class RootLexicon implements Iterable<DictionaryItem> {
     return Singleton.Instance.defaultLexicon;
   }
 
-  private Multimap<String, DictionaryItem> itemMap = HashMultimap.create(100000, 1);
-  private Map<String, DictionaryItem> idMap = Maps.newHashMap();
-  private Set<DictionaryItem> itemSet = Sets.newLinkedHashSet();
+  private Multimap<String, DictionaryItem> itemMap = HashMultimap.create(INITIAL_CAPACITY, 1);
+  private Map<String, DictionaryItem> idMap = new HashMap<>(INITIAL_CAPACITY);
+  private Set<DictionaryItem> itemSet = new LinkedHashSet<>(INITIAL_CAPACITY);
 
   public RootLexicon(List<DictionaryItem> dictionaryItems) {
     for (DictionaryItem dictionaryItem : dictionaryItems) {
@@ -168,8 +172,12 @@ public class RootLexicon implements Iterable<DictionaryItem> {
       return this;
     }
 
-    public Builder setDefaultLexicon(RootLexicon lexicon) {
-      this.lexicon = getDefault();
+    public Builder addDefaultLexicon() {
+      if(lexicon.size()==0) {
+        lexicon = getDefault();
+      } else {
+        addLexicon(getDefault());
+      }
       return this;
     }
 

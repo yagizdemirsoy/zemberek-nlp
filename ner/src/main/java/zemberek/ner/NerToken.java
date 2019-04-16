@@ -27,6 +27,26 @@ public class NerToken {
     this.tokenId = getTokenId();
   }
 
+  public int getIndex() {
+    return index;
+  }
+
+  public String getWord() {
+    return word;
+  }
+
+  public String getNormalized() {
+    return normalized;
+  }
+
+  public String getType() {
+    return type;
+  }
+
+  public NePosition getPosition() {
+    return position;
+  }
+
   static NerToken fromTypePositionString(int index, String word, String normalized, String id) {
     if (id.equals("O")) {
       return new NerToken(index, word, normalized, NerDataSet.OUT_TOKEN_TYPE, NePosition.OUTSIDE);
