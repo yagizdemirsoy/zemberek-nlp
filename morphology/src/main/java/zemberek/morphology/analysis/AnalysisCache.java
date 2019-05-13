@@ -38,6 +38,7 @@ public class AnalysisCache {
     this.staticCacheDisabled = builder._disableStaticCache;
 
     dynamicCache = dynamicCacheDisabled ? null : Caffeine.newBuilder()
+        .executor(Runnable::run)
         .recordStats()
         .initialCapacity(builder._dynamicCacheInitialSize)
         .maximumSize(builder._dynamicCacheMaxSize)
